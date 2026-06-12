@@ -1,101 +1,169 @@
-const readline = require('readline');
-const path = require('path');
-const { fileExists, dirnameOf } = require('./loader');
-const r = require('./render');
-const c = require('./colors');
+import fs from 'node:fs';
+import path from 'node:path';
+import { select, confirm } from '@inquirer/prompts';
+import { listYmlFiles, findBaseCandidates } from './loader.js';
+import { renderBanner } from './banner.js';
+import { renderWarning, renderInfo, renderSummary } from './render.js';
+import { promptTheme } from './theme.js';
 
-function ask(rl, question) {
-  return new Promise((resolve) => {
-    rl.question(r.renderPrompt(question), (answer) => resolve(answer.trim()));
-  });
-}
+const BACK = '__back__';
+const STAY = '__stay__';
 
-function confirm(rl, question) {
-  return ask(rl, question).then((a) => {
-    const v = a.toLowerCase();
-    return v === 's' || v === 'si' || v === 'y' || v === 'yes' || v === '';
-  });
-}
-
-async function runInteractive({ skipFinalConfirm }) {
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-
+function listSubdirectories(dir) {
+  const absDir = path.resolve(dir);
+  let entries;
   try {
-    r.renderInfo('Modo interactivo. Responde las preguntas para configurar la comparacion.');
-    console.log('');
+    entries = fs.readdirSync(absDir, { withFileTypes: true });
+  } catch (_) {
+    return [];
+  }
+  return entries
+    .filter((e) => e.isDirectory() && !e.name.startsWith('.'))
+    .map((e) => path.join(absDir, e.name))
+    .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
+}
 
-    const basePathRaw = await ask(rl, 'Ruta al application.yml base (Enter para omitir):');
-    const basePath = basePathRaw || null;
-    let mode;
-    let baseDir = null;
-    let baseExists = false;
+export async function pickWorkingDirectory(startDir) {
+  let current = path.resolve(startDir);
 
-    if (basePath) {
-      baseExists = fileExists(basePath);
-      if (baseExists) {
-        baseDir = dirnameOf(basePath);
-        const same = await confirm(rl, 'Los application-<perfil>.yml estan en la misma carpeta? [S/n]');
-        mode = same ? 'same' : 'split';
-      } else {
-        r.renderWarning(`No se encontro ${basePath}. Se compararan los perfiles sin base.`);
-        mode = 'noBase';
-      }
-    } else {
-      r.renderWarning('No se proporciono application.yml. Se compararan los perfiles sin base.');
-      mode = 'noBase';
-    }
+  while (true) {
+    const subs = listSubdirectories(current);
+    const choices = [
+      { name: './', value: STAY },
+      { name: '../', value: path.dirname(current) },
+      ...subs.map((d) => ({ name: `./${path.relative(current, d) || path.basename(d) + path.sep}`, value: d })),
+    ];
 
-    let profileAPath, profileBPath, profileAPathRaw, profileBPathRaw;
-    let profileAName, profileBName;
-
-    if (mode === 'same') {
-      profileAName = await ask(rl, 'Nombre del perfil A (ej: dev):');
-      profileBName = await ask(rl, 'Nombre del perfil B (ej: prod):');
-      profileAPath = path.join(baseDir, `application-${profileAName}.yml`);
-      profileBPath = path.join(baseDir, `application-${profileBName}.yml`);
-    } else if (mode === 'split') {
-      profileAPathRaw = await ask(rl, 'Carpeta del perfil A:');
-      profileBPathRaw = await ask(rl, 'Carpeta del perfil B:');
-      profileAName = await ask(rl, 'Nombre del perfil A (ej: dev):');
-      profileBName = await ask(rl, 'Nombre del perfil B (ej: prod):');
-      profileAPath = path.join(path.resolve(profileAPathRaw), `application-${profileAName}.yml`);
-      profileBPath = path.join(path.resolve(profileBPathRaw), `application-${profileBName}.yml`);
-    } else {
-      profileAPathRaw = await ask(rl, 'Ruta completa al archivo del perfil A:');
-      profileBPathRaw = await ask(rl, 'Ruta completa al archivo del perfil B:');
-      profileAPath = path.resolve(profileAPathRaw);
-      profileBPath = path.resolve(profileBPathRaw);
-      profileAName = path.basename(profileAPath).replace(/^application-/, '').replace(/\.yml$/, '');
-      profileBName = path.basename(profileBPath).replace(/^application-/, '').replace(/\.yml$/, '');
-    }
-
-    r.renderSummary({
-      base: baseExists ? path.resolve(basePath) : null,
-      profileA: profileAPath,
-      profileB: profileBPath,
-      profileAName,
-      profileBName,
+    const picked = await select({
+      message: `Working directory: (${current})`,
+      choices,
+      pageSize: Math.max(5, choices.length),
+      theme: promptTheme,
     });
 
-    if (!skipFinalConfirm) {
-      const ok = await confirm(rl, 'Continuar con la comparacion? [S/n]');
-      if (!ok) {
-        r.renderInfo('Cancelado por el usuario.');
-        rl.close();
-        process.exit(0);
-      }
+    if (picked === STAY) {
+      return current;
     }
-
-    return {
-      basePath: baseExists ? path.resolve(basePath) : null,
-      profileAPath,
-      profileBPath,
-      profileAName: profileAName || 'A',
-      profileBName: profileBName || 'B',
-    };
-  } finally {
-    rl.close();
+    current = picked;
   }
 }
 
-module.exports = { runInteractive };
+export async function pickYamlFile(dir, label) {
+  const files = listYmlFiles(dir);
+  const choices = [
+    { name: '<- Volver', value: BACK },
+    ...files.map((f) => ({ name: path.basename(f), value: f })),
+  ];
+
+  if (files.length === 0) {
+    return {
+      result: BACK,
+      message: `(este directorio no contiene archivos .yml o .yaml)`,
+    };
+  }
+
+  const picked = await select({
+    message: `${label}: (working dir = ${dir})`,
+    choices,
+    pageSize: Math.max(5, choices.length),
+    theme: promptTheme,
+  });
+
+  return { result: picked };
+}
+
+export async function pickBaseCandidate(candidates) {
+  const choices = candidates.map((c) => ({ name: c, value: c }));
+  return await select({
+    message: 'Varios archivos base posibles, elige uno:',
+    choices,
+    pageSize: Math.max(5, choices.length),
+    theme: promptTheme,
+  });
+}
+
+function displayName(filePath) {
+  if (!filePath) return 'base';
+  const base = path.basename(filePath, path.extname(filePath));
+  return base === 'application' ? 'base' : base;
+}
+
+export async function runInteractive({ skipFinalConfirm }) {
+  renderBanner();
+
+  let workingDir;
+  let profileAPath;
+  let profileBPath;
+  let basePath = null;
+
+  while (true) {
+    workingDir = await pickWorkingDirectory(process.cwd());
+
+    const baseCandidates = findBaseCandidates(workingDir);
+    if (baseCandidates.length === 0) {
+      renderWarning(`no se encontro application.yml ni application.yaml en ${workingDir}; se comparara sin archivo base`);
+      basePath = null;
+    } else if (baseCandidates.length === 1) {
+      basePath = baseCandidates[0];
+    } else {
+      basePath = await pickBaseCandidate(baseCandidates);
+    }
+
+    let filePick;
+    while (true) {
+      filePick = await pickYamlFile(workingDir, 'Profile A');
+      if (filePick.result === BACK) {
+        if (filePick.message) renderInfo(filePick.message);
+        break;
+      }
+      profileAPath = filePick.result;
+      break;
+    }
+    if (profileAPath) {
+      while (true) {
+        filePick = await pickYamlFile(workingDir, 'Profile B');
+        if (filePick.result === BACK) {
+          if (filePick.message) renderInfo(filePick.message);
+          break;
+        }
+        profileBPath = filePick.result;
+        break;
+      }
+    }
+
+    if (profileAPath && profileBPath) {
+      break;
+    }
+  }
+
+  const profileAName = displayName(profileAPath);
+  const profileBName = displayName(profileBPath);
+
+  renderSummary({
+    base: basePath,
+    profileA: profileAPath,
+    profileB: profileBPath,
+    profileAName,
+    profileBName,
+  });
+
+  if (!skipFinalConfirm) {
+    const ok = await confirm({
+      message: 'Continuar con la comparacion?',
+      default: true,
+      theme: promptTheme,
+    });
+    if (!ok) {
+      renderInfo('Cancelado por el usuario.');
+      return { cancelled: true };
+    }
+  }
+
+  return {
+    basePath,
+    profileAPath,
+    profileBPath,
+    profileAName,
+    profileBName,
+  };
+}

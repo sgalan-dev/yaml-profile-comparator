@@ -1,9 +1,7 @@
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const args = argv.slice(2);
   const flags = {
-    base: null,
-    profileA: null,
-    profileB: null,
+    basePath: null,
     profileAPath: null,
     profileBPath: null,
     yes: false,
@@ -14,16 +12,8 @@ function parseArgs(argv) {
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     switch (a) {
-      case '--base':
-        flags.base = args[++i];
-        flags.hasAnyFlag = true;
-        break;
-      case '--profile-a':
-        flags.profileA = args[++i];
-        flags.hasAnyFlag = true;
-        break;
-      case '--profile-b':
-        flags.profileB = args[++i];
+      case '--base-path':
+        flags.basePath = args[++i];
         flags.hasAnyFlag = true;
         break;
       case '--profile-a-path':
@@ -52,33 +42,32 @@ function parseArgs(argv) {
   return flags;
 }
 
-function printHelp() {
+export function printHelp() {
   const lines = [
     'yaml-profile-comparator',
     '',
-    'Compara dos archivos application-<perfil>.yml de Spring Boot para detectar claves',
-    'presentes en un perfil y ausentes en el otro. Por defecto pregunta todo en modo',
-    'interactivo; con flags ejecuta sin prompts.',
+    'Compara dos archivos YAML de Spring Boot para detectar claves presentes en un',
+    'perfil y ausentes en el otro. Por defecto abre un TUI que guia la eleccion de',
+    'archivos; con flags ejecuta sin prompts.',
     '',
     'Uso:',
     '  node src/index.js [flags]',
     '',
     'Flags:',
-    '  --base <ruta>             Ruta al application.yml (opcional). Si se omite o el',
-    '                            archivo no existe, se comparan los perfiles sin base.',
-    '  --profile-a <nombre>      Nombre del perfil A (ej: dev).',
-    '  --profile-b <nombre>      Nombre del perfil B (ej: prod).',
-    '  --profile-a-path <dir>    Carpeta del perfil A. Si no se da y hay --base, se usa',
-    '                            la carpeta de --base.',
-    '  --profile-b-path <dir>    Carpeta del perfil B. Idem.',
+    '  --base-path <abs>         Ruta absoluta al application.yml (o .yaml) base.',
+    '                            Opcional. Si se omite o el archivo no existe, se',
+    '                            comparan los perfiles sin base.',
+    '  --profile-a-path <abs>    Ruta absoluta al archivo del perfil A.',
+    '  --profile-b-path <abs>    Ruta absoluta al archivo del perfil B.',
     '  -y, --yes                 Saltea la confirmacion final del resumen.',
     '  -h, --help                Muestra esta ayuda.',
     '',
     'Salida: exit 0 si las estructuras coinciden, 1 si hay divergencias o error.',
     '',
-    'Nota: la extension es siempre .yml (no se intenta .yaml).',
+    'Nota: se soportan extensiones .yml y .yaml en cualquier combinacion.',
+    '',
+    'BREAKING: los flags antiguos --base, --profile-a, --profile-b ya no existen.',
+    'Usar las variantes con sufijo -path que reciben la ruta completa al archivo.',
   ];
   console.log(lines.join('\n'));
 }
-
-module.exports = { parseArgs, printHelp };

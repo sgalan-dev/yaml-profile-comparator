@@ -2,12 +2,12 @@ const useColor = process.stdout.isTTY === true;
 
 const wrap = (code) => (s) => useColor ? `\x1b[${code}m${s}\x1b[0m` : String(s);
 
-module.exports = {
-  red:    wrap('31'),
-  green:  wrap('32'),
-  yellow: wrap('33'),
-  blue:   wrap('34'),
-  bold:   wrap('1'),
-  dim:    wrap('2'),
-  isColorEnabled: () => useColor,
-};
+export const red    = wrap('31');
+export const green  = wrap('32');
+export const yellow = wrap('33');
+export const blue   = wrap('34');
+export const cyan   = wrap('36');
+export const magenta = wrap('35');
+export const bold   = wrap('1');
+export const dim    = wrap('2');
+export const isColorEnabled = () => useColor;

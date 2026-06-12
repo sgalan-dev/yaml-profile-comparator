@@ -1,12 +1,12 @@
-const c = require('./colors');
+import * as c from './colors.js';
 
-function renderHeader(title) {
+export function renderHeader(title) {
   console.log('');
   console.log(c.bold(c.blue(title)));
   console.log(c.dim('-'.repeat(title.length)));
 }
 
-function renderSummary(resolved) {
+export function renderSummary(resolved) {
   renderHeader('Resumen de archivos');
   if (resolved.base) {
     console.log(`  ${c.bold('base')}  -> ${c.blue(resolved.base)}`);
@@ -17,7 +17,7 @@ function renderSummary(resolved) {
   console.log(`  ${c.bold(resolved.profileBName)} -> ${c.blue(resolved.profileB)}`);
 }
 
-function renderDiff({ profileAName, profileBName, missingInB, missingInA }) {
+export function renderDiff({ profileAName, profileBName, missingInB, missingInA }) {
   console.log('');
   console.log(c.bold('Resultado de la comparacion'));
   console.log(c.dim('---------------------------'));
@@ -45,35 +45,25 @@ function renderDiff({ profileAName, profileBName, missingInB, missingInA }) {
   return hasErrors;
 }
 
-function renderSuccess({ profileAName, profileBName }) {
+export function renderSuccess({ profileAName, profileBName }) {
   console.log('');
   console.log(c.green(`OK: ${profileAName} y ${profileBName} tienen exactamente la misma estructura de propiedades.`));
 }
 
-function renderError(message) {
+export function renderError(message) {
   console.error('');
   console.error(c.red(`Error: ${message}`));
 }
 
-function renderWarning(message) {
+export function renderWarning(message) {
   console.log('');
   console.log(c.yellow(`Aviso: ${message}`));
 }
 
-function renderInfo(message) {
+export function renderInfo(message) {
   console.log(c.dim(message));
 }
 
-function renderPrompt(question) {
+export function renderPrompt(question) {
   return `${c.bold(question)} `;
 }
-
-module.exports = {
-  renderSummary,
-  renderDiff,
-  renderSuccess,
-  renderError,
-  renderWarning,
-  renderInfo,
-  renderPrompt,
-};

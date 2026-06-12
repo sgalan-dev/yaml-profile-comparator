@@ -1,8 +1,8 @@
-function isPlainObject(item) {
+export function isPlainObject(item) {
   return item !== null && typeof item === 'object' && !Array.isArray(item);
 }
 
-function mergeDeep(base, override) {
+export function mergeDeep(base, override) {
   if (!isPlainObject(base) || !isPlainObject(override)) {
     return isPlainObject(override) ? { ...override } : override;
   }
@@ -18,5 +18,3 @@ function mergeDeep(base, override) {
   }
   return output;
 }
-
-module.exports = { mergeDeep, isPlainObject };

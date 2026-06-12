@@ -1,6 +1,6 @@
 # yaml-profile-comparator
 
-Utilidad de línea de comandos que compara dos archivos `application-{perfil}.yml` de Spring Boot para detectar claves presentes en un perfil y ausentes en el otro.
+Utilidad de línea de comandos que compara dos archivos YAML de Spring Boot (`application-<perfil>.yml` o `application-<perfil>.yaml`) para detectar claves presentes en un perfil y ausentes en el otro.
 
 Es una herramienta para el desarrollador, **no una dependencia del proyecto Spring**. Vive en una carpeta propia y se lanza desde el terminal.
 
@@ -12,59 +12,55 @@ cd yaml-profile-comparator
 npm install
 ```
 
-Requiere Node.js >= 16.
+Requiere Node.js >= 18.
 
-## Uso interactivo
+## Uso interactivo (TUI)
 
 ```bash
 node src/index.js
 ```
 
-El programa preguntará:
+Al arrancar sin flags se abre un TUI guiado por flechas y Enter. Los pasos son:
 
-1. Ruta al `application.yml` base (Enter para omitir).
-2. Si la base existe: ¿los `application-{perfil}.yml` están en la misma carpeta?
-3. Nombre del perfil A y del perfil B.
-4. Resumen de las 3 rutas finales y confirmación.
-
-Si la base no existe, salta a pedir la ruta completa de ambos perfiles y los compara directamente.
+1. **Banner ASCII** con el título "yaml profile comparator" y la firma "sgalan.dev".
+2. **Selector de directorio de trabajo**: arranca en `process.cwd()`. Las dos primeras opciones son siempre `./` (confirmar) y `../` (subir un nivel). El resto son los subdirectorios no ocultos, ordenados alfabéticamente.
+3. **Selector del perfil A**: lista plana de `*.yml` y `*.yaml` del directorio elegido, con `← Volver` como primera opción para volver al selector de directorio.
+4. **Selector del perfil B**: misma forma que el de A.
+5. **Auto-detección del archivo base**: si existe `application.yml` o `application.yaml` en el directorio, se toma silenciosamente. Si existen ambos, se pregunta cuál usar. Si no hay ninguno, se imprime un aviso y se sigue sin base.
+6. **Resumen final** con las tres rutas resueltas (o `(sin archivo base)` si corresponde) y un nombre legible derivado del nombre del archivo.
+7. **Confirmación** "¿Continuar con la comparación?" con default "sí". Con `-y` / `--yes` se salta.
 
 ## Uso con flags (no interactivo)
 
 ```bash
-# Con base, perfiles en la misma carpeta
-node src/index.js \
-  --base /ruta/a/mi-app/src/main/resources/application.yml \
-  --profile-a dev \
-  --profile-b prod
+# Con base, dos perfiles
+node src/index.js -y \
+  --base-path /ruta/a/mi-app/src/main/resources/application.yml \
+  --profile-a-path /ruta/a/mi-app/src/main/resources/application-dev.yml \
+  --profile-b-path /ruta/a/mi-app/src/main/resources/application-prod.yml
 
-# Con base, perfiles en carpetas distintas
-node src/index.js \
-  --base /ruta/a/application.yml \
-  --profile-a dev \
-  --profile-a-path /ruta/a/config/dev \
-  --profile-b prod \
-  --profile-b-path /ruta/a/config/prod
+# Sin base, los dos perfiles con ruta explícita
+node src/index.js -y \
+  --profile-a-path /ruta/a/application-dev.yml \
+  --profile-b-path /ruta/a/application-prod.yml
 
-# Sin base, ambos perfiles con ruta explícita
-node src/index.js \
-  --profile-a dev \
-  --profile-a-path /ruta/a/config \
-  --profile-b prod \
-  --profile-b-path /ruta/a/config
+# Rutas relativas (se resuelven contra process.cwd())
+node src/index.js -y \
+  --profile-a-path ./application-dev.yml \
+  --profile-b-path ./application-prod.yml
 ```
 
 Flags disponibles:
 
 | Flag | Descripción |
 |---|---|
-| `--base <ruta>` | Ruta al `application.yml`. Opcional. |
-| `--profile-a <nombre>` | Nombre del perfil A. |
-| `--profile-b <nombre>` | Nombre del perfil B. |
-| `--profile-a-path <dir>` | Carpeta del perfil A. Si se omite y hay `--base`, se usa la carpeta de `--base`. |
-| `--profile-b-path <dir>` | Carpeta del perfil B. Idem. |
+| `--base-path <abs>` | Ruta absoluta al `application.yml` o `application.yaml` base. Opcional. Si se omite o el archivo no existe, se comparan los perfiles sin base (y se imprime un aviso). |
+| `--profile-a-path <abs>` | Ruta absoluta al archivo del perfil A. Obligatorio en modo flags. |
+| `--profile-b-path <abs>` | Ruta absoluta al archivo del perfil B. Obligatorio en modo flags. |
 | `-y`, `--yes` | Saltea la confirmación final. |
 | `-h`, `--help` | Muestra la ayuda. |
+
+**BREAKING** desde la versión 0.1: los flags antiguos `--base`, `--profile-a`, `--profile-b` ya no existen. Las variantes con sufijo `-path` reciben la ruta completa al archivo, no un nombre de perfil.
 
 ## Códigos de salida
 
@@ -75,7 +71,8 @@ Flags disponibles:
 
 - **Solo compara la presencia de claves**, no sus valores ni sus tipos. `port: "8080"` y `port: 8080` cuentan como coincidentes.
 - **Deep merge** perfil-sobre-base con arrays reemplazados en bloque (no se concatenan). Coincide con el comportamiento habitual de Spring Boot.
-- **Extensión fijada en `.yml`**. No se intenta `.yaml` como alternativa.
+- **Soporta `.yml` y `.yaml`** en cualquier combinación (auto-detección, validación, listado en el TUI).
 - **No soporta** `spring.profiles.include`, `spring.config.activate.on-profile` ni `spring.config.import`. Solo lee los archivos nombrados explícitamente.
 - **No se valida corrección en runtime** contra `@ConfigurationProperties`. Es un check declarativo de cobertura entre archivos.
+- **El TUI requiere TTY.** En pipes o CI usar el modo con flags (`--profile-a-path`, `--profile-b-path`, etc.).
 - **No se distribuye como binario ni como paquete npm**. Es un proyecto local del desarrollador.

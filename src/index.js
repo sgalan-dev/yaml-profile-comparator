@@ -1,65 +1,52 @@
 #!/usr/bin/env node
-const path = require('path');
-const { parseArgs, printHelp } = require('./args');
-const { runInteractive } = require('./interactive');
-const { loadYamlOptional, validateFile, fileExists } = require('./loader');
-const { mergeDeep } = require('./merge');
-const { flatten } = require('./flatten');
-const { diffKeys } = require('./diff');
-const r = require('./render');
-const c = require('./colors');
+import path from 'node:path';
+import { parseArgs, printHelp } from './args.js';
+import { runInteractive } from './interactive.js';
+import { loadYamlOptional, validateFile, fileExists } from './loader.js';
+import { mergeDeep } from './merge.js';
+import { flatten } from './flatten.js';
+import { diffKeys } from './diff.js';
+import * as r from './render.js';
+
+function displayName(filePath) {
+  if (!filePath) return 'base';
+  const base = path.basename(filePath, path.extname(filePath));
+  return base === 'application' ? 'base' : base;
+}
 
 function resolveFromFlags(flags) {
-  if (!flags.profileA || !flags.profileB) {
-    r.renderError('En modo flags --profile-a y --profile-b son obligatorios.');
+  if (!flags.profileAPath || !flags.profileBPath) {
+    r.renderError('En modo flags --profile-a-path y --profile-b-path son obligatorios.');
     printHelp();
     process.exit(1);
   }
 
   let basePath = null;
-  let baseDir = null;
-  let hasBase = false;
-
-  if (flags.base) {
-    if (fileExists(flags.base)) {
-      basePath = path.resolve(flags.base);
-      baseDir = path.dirname(basePath);
-      hasBase = true;
+  if (flags.basePath) {
+    if (fileExists(flags.basePath)) {
+      basePath = path.resolve(flags.basePath);
     } else {
-      r.renderWarning(`No se encontro ${flags.base}. Se compararan los perfiles sin base.`);
+      r.renderWarning(`No se encontro ${flags.basePath}. Se compararan los perfiles sin base.`);
+      basePath = null;
     }
   }
 
-  let profileAPath, profileBPath;
-
-  if (!hasBase) {
-    if (!flags.profileAPath || !flags.profileBPath) {
-      r.renderError('Sin --base valido, --profile-a-path y --profile-b-path son obligatorios.');
-      printHelp();
-      process.exit(1);
-    }
-    profileAPath = path.join(path.resolve(flags.profileAPath), `application-${flags.profileA}.yml`);
-    profileBPath = path.join(path.resolve(flags.profileBPath), `application-${flags.profileB}.yml`);
-  } else {
-    const aDir = flags.profileAPath ? path.resolve(flags.profileAPath) : baseDir;
-    const bDir = flags.profileBPath ? path.resolve(flags.profileBPath) : baseDir;
-    profileAPath = path.join(aDir, `application-${flags.profileA}.yml`);
-    profileBPath = path.join(bDir, `application-${flags.profileB}.yml`);
-  }
+  const profileAPath = path.resolve(flags.profileAPath);
+  const profileBPath = path.resolve(flags.profileBPath);
 
   return {
     basePath,
     profileAPath,
     profileBPath,
-    profileAName: flags.profileA,
-    profileBName: flags.profileB,
+    profileAName: displayName(profileAPath),
+    profileBName: displayName(profileBPath),
   };
 }
 
 function runComparison({ basePath, profileAPath, profileBPath, profileAName, profileBName }) {
   if (basePath) validateFile(basePath, 'application.yml base');
-  validateFile(profileAPath, `application-${profileAName}.yml`);
-  validateFile(profileBPath, `application-${profileBName}.yml`);
+  validateFile(profileAPath, `perfil A (${profileAName})`);
+  validateFile(profileBPath, `perfil B (${profileBName})`);
 
   const base = basePath ? loadYamlOptional(basePath) : {};
   const a = loadYamlOptional(profileAPath);
@@ -97,6 +84,10 @@ async function main() {
     resolved = await runInteractive({ skipFinalConfirm: flags.yes });
   }
 
+  if (resolved.cancelled) {
+    process.exit(0);
+  }
+
   const code = runComparison(resolved);
   process.exit(code);
 }
@@ -106,8 +97,21 @@ process.on('uncaughtException', (e) => {
   process.exit(1);
 });
 process.on('unhandledRejection', (e) => {
-  r.renderError(`Promesa rechazada no manejada: ${e && e.message ? e.message : String(e)}`);
+  const msg = e && e.message ? e.message : String(e);
+  if (/User force closed the prompt|User force closed|AbortError|SIGINT/i.test(msg)) {
+    return;
+  }
+  r.renderError(`Promesa rechazada no manejada: ${msg}`);
   process.exit(1);
+});
+
+process.on('SIGINT', () => {
+  r.renderInfo('Interrumpido por el usuario.');
+  process.exit(130);
+});
+process.on('SIGTERM', () => {
+  r.renderInfo('Interrumpido por el usuario.');
+  process.exit(143);
 });
 
 main();

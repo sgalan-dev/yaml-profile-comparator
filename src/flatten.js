@@ -1,6 +1,6 @@
-const { isPlainObject } = require('./merge');
+import { isPlainObject } from './merge.js';
 
-function flatten(obj, prefix = '') {
+export function flatten(obj, prefix = '') {
   let keys = [];
   if (Array.isArray(obj)) {
     obj.forEach((item, idx) => {
@@ -25,5 +25,3 @@ function flatten(obj, prefix = '') {
   }
   return keys;
 }
-
-module.exports = { flatten };
