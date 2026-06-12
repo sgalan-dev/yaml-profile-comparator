@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 const path = require('path');
 const { parseArgs, printHelp } = require('./args');
 const { runInteractive } = require('./interactive');
