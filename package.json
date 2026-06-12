@@ -1,0 +1,19 @@
+{
+  "name": "yaml-profile-comparator",
+  "version": "0.1.0",
+  "description": "Compares two Spring Boot profile YAML files to detect missing properties",
+  "private": true,
+  "bin": {
+    "yaml-profile-comparator": "src/index.js"
+  },
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=16"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "license": "MIT"
+}
