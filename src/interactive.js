@@ -5,6 +5,7 @@ import { listYmlFiles, findBaseCandidates } from './loader.js';
 import { renderBanner } from './banner.js';
 import { renderWarning, renderInfo, renderSummary } from './render.js';
 import { promptTheme } from './theme.js';
+import { t, setLocale } from './i18n.js';
 
 const BACK = '__back__';
 const STAY = '__stay__';
@@ -23,6 +24,19 @@ function listSubdirectories(dir) {
     .sort((a, b) => a.toLowerCase().localeCompare(b.toLowerCase()));
 }
 
+export async function pickLanguage() {
+  const choices = [
+    { name: t('language.optionEs'), value: 'es' },
+    { name: t('language.optionEn'), value: 'en' },
+  ];
+  return await select({
+    message: t('language.question'),
+    choices,
+    pageSize: choices.length,
+    theme: promptTheme,
+  });
+}
+
 export async function pickWorkingDirectory(startDir) {
   let current = path.resolve(startDir);
 
@@ -35,7 +49,7 @@ export async function pickWorkingDirectory(startDir) {
     ];
 
     const picked = await select({
-      message: `Working directory: (${current})`,
+      message: t('workingDir.message', { dir: current }),
       choices,
       pageSize: Math.max(5, choices.length),
       theme: promptTheme,
@@ -51,14 +65,14 @@ export async function pickWorkingDirectory(startDir) {
 export async function pickYamlFile(dir, label) {
   const files = listYmlFiles(dir);
   const choices = [
-    { name: '<- Volver', value: BACK },
+    { name: t('yamlFile.back'), value: BACK },
     ...files.map((f) => ({ name: path.basename(f), value: f })),
   ];
 
   if (files.length === 0) {
     return {
       result: BACK,
-      message: `(este directorio no contiene archivos .yml o .yaml)`,
+      message: t('yamlFile.empty'),
     };
   }
 
@@ -75,7 +89,7 @@ export async function pickYamlFile(dir, label) {
 export async function pickBaseCandidate(candidates) {
   const choices = candidates.map((c) => ({ name: c, value: c }));
   return await select({
-    message: 'Varios archivos base posibles, elige uno:',
+    message: t('basePicker.message'),
     choices,
     pageSize: Math.max(5, choices.length),
     theme: promptTheme,
@@ -91,6 +105,9 @@ function displayName(filePath) {
 export async function runInteractive({ skipFinalConfirm }) {
   renderBanner();
 
+  const pickedLang = await pickLanguage();
+  setLocale(pickedLang);
+
   let workingDir;
   let profileAPath;
   let profileBPath;
@@ -101,7 +118,7 @@ export async function runInteractive({ skipFinalConfirm }) {
 
     const baseCandidates = findBaseCandidates(workingDir);
     if (baseCandidates.length === 0) {
-      renderWarning(`no se encontro application.yml ni application.yaml en ${workingDir}; se comparara sin archivo base`);
+      renderWarning(t('baseMissingWarning', { dir: workingDir }));
       basePath = null;
     } else if (baseCandidates.length === 1) {
       basePath = baseCandidates[0];
@@ -111,7 +128,7 @@ export async function runInteractive({ skipFinalConfirm }) {
 
     let filePick;
     while (true) {
-      filePick = await pickYamlFile(workingDir, 'Profile A');
+      filePick = await pickYamlFile(workingDir, t('profileA.label'));
       if (filePick.result === BACK) {
         if (filePick.message) renderInfo(filePick.message);
         break;
@@ -121,7 +138,7 @@ export async function runInteractive({ skipFinalConfirm }) {
     }
     if (profileAPath) {
       while (true) {
-        filePick = await pickYamlFile(workingDir, 'Profile B');
+        filePick = await pickYamlFile(workingDir, t('profileB.label'));
         if (filePick.result === BACK) {
           if (filePick.message) renderInfo(filePick.message);
           break;
@@ -149,12 +166,12 @@ export async function runInteractive({ skipFinalConfirm }) {
 
   if (!skipFinalConfirm) {
     const ok = await confirm({
-      message: 'Continuar con la comparacion?',
+      message: t('confirm.continue'),
       default: true,
       theme: promptTheme,
     });
     if (!ok) {
-      renderInfo('Cancelado por el usuario.');
+      renderInfo(t('confirm.cancelled'));
       return { cancelled: true };
     }
   }

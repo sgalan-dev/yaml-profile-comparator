@@ -22,7 +22,8 @@ node src/index.js
 
 Al arrancar sin flags se abre un TUI guiado por flechas y Enter. Los pasos son:
 
-1. **Banner ASCII** con el título "yaml profile comparator" y la firma "sgalan.dev".
+0. **Banner ASCII** con el título "yaml profile comparator" y la firma "sgalan.dev".
+1. **Selector de idioma**: la primera pregunta es "Which language do you want to use?" con opciones `English` y `Español`. El idioma por defecto es inglés. Todo el TUI (prompts, summary, diff, success, warnings, Ctrl-C) se muestra en el idioma elegido. No se persiste entre invocaciones.
 2. **Selector de directorio de trabajo**: arranca en `process.cwd()`. Las dos primeras opciones son siempre `./` (confirmar) y `../` (subir un nivel). El resto son los subdirectorios no ocultos, ordenados alfabéticamente.
 3. **Selector del perfil A**: lista plana de `*.yml` y `*.yaml` del directorio elegido, con `← Volver` como primera opción para volver al selector de directorio.
 4. **Selector del perfil B**: misma forma que el de A.

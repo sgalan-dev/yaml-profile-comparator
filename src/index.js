@@ -7,6 +7,7 @@ import { mergeDeep } from './merge.js';
 import { flatten } from './flatten.js';
 import { diffKeys } from './diff.js';
 import * as r from './render.js';
+import { t } from './i18n.js';
 
 function displayName(filePath) {
   if (!filePath) return 'base';
@@ -106,11 +107,11 @@ process.on('unhandledRejection', (e) => {
 });
 
 process.on('SIGINT', () => {
-  r.renderInfo('Interrumpido por el usuario.');
+  r.renderInfo(t('interrupted'));
   process.exit(130);
 });
 process.on('SIGTERM', () => {
-  r.renderInfo('Interrumpido por el usuario.');
+  r.renderInfo(t('interrupted'));
   process.exit(143);
 });
 
